@@ -1,0 +1,47 @@
+# 排除data文件夹中的图片文件
+data/**/*.jpg
+data/**/*.jpeg
+data/**/*.png
+data/**/*.bmp
+data/**/*.gif
+data/**/*.tif
+data/**/*.tiff
+
+# Python缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# IDE配置文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 模型文件（大于100MB，超过GitHub限制）
+best_model.pth
+*.pth
+*.ckpt
+*.h5
+*.weights
+
+# 测试结果图片
+test_results/*.png
+test_results/*.jpg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 训练过程生成的文件
+training_curves.png
+dataset_test.png
