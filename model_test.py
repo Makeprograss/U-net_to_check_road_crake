@@ -65,11 +65,10 @@ def calculate_iou(pred, target, num_classes=2):
 
 def test_data_process():
     # 定义数据集的路径
-    test_image_path = 'U-net_to_check_road_crake/data/test/images'
-    test_mask_path = 'U-net_to_check_road_crake/data/test/masks'
+    test_image_path = 'data/test/images'
+    test_mask_path = 'data/test/masks'
 
-    normalize = transforms.Normalize(mean=[0.15804266,0.16457426,0.16825973],
-                                    std=[0.04205786,0.04393576,0.04547899])
+    normalize = transforms.Normalize(mean=[0.15620959,0.16285059,0.16683851],std=[0.04152462,0.04320607,0.04479365])
 
     # 定义数据集处理方法变量（与训练时相同）
     test_transform = transforms.Compose([
@@ -124,7 +123,7 @@ def test_model_process(model, test_dataloader):
 
     return avg_iou
 
-def visualize_predictions(model, test_dataloader, num_samples=5, save_dir='U-net_to_check_road_crake/test_results'):
+def visualize_predictions(model, test_dataloader, num_samples=5, save_dir='test_results'):
     """可视化预测结果"""
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = model.to(device)
@@ -199,7 +198,7 @@ if __name__ == "__main__":
     model = UNet(n_channels=3, n_classes=2)
 
     # 加载训练好的模型权重
-    model_path = 'U-net_to_check_road_crake/best_model.pth'
+    model_path = 'best_model.pth'
     if os.path.exists(model_path):
         model.load_state_dict(torch.load(model_path, map_location=device))
         print(f"成功加载模型: {model_path}")

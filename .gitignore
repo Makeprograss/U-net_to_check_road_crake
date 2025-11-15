@@ -1,11 +1,3 @@
-# 排除data文件夹中的图片文件
-data/**/*.jpg
-data/**/*.jpeg
-data/**/*.png
-data/**/*.bmp
-data/**/*.gif
-data/**/*.tif
-data/**/*.tiff
 
 # Python缓存文件
 __pycache__/

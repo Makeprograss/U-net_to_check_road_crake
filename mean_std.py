@@ -3,7 +3,7 @@ import numpy as np
 from PIL import Image
 
 # 文件夹路径，包含所有图片文件
-folder_path ='U-net_to_check_road_crake/data/train/images'
+folder_path ='data/train/images'
 
 # 初始化累积变量
 total_pixels = 0

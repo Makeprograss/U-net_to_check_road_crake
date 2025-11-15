@@ -18,6 +18,66 @@ from PIL import Image
 import numpy as np
 from glob import glob
 
+# Dice Loss 实现（对小目标和细节更敏感）
+class DiceLoss(nn.Module):
+    def __init__(self, smooth=1.0):
+        """
+        Dice Loss for segmentation
+        Args:
+            smooth: 平滑系数，避免分母为0
+        """
+        super(DiceLoss, self).__init__()
+        self.smooth = smooth
+
+    def forward(self, pred, target):
+        """
+        Args:
+            pred: 模型输出 [B, C, H, W] (C=2，背景和裂缝)
+            target: 真实标签 [B, H, W]，值为0或1
+        Returns:
+            dice_loss: Dice损失值
+        """
+        # 将预测转换为概率分布（softmax）
+        pred = torch.softmax(pred, dim=1)  # [B, C, H, W]
+
+        # 只计算裂缝类别的Dice Loss（类别1）
+        pred_crack = pred[:, 1, :, :]  # [B, H, W]
+        target_crack = target.float()  # [B, H, W]
+
+        # 展平
+        pred_flat = pred_crack.contiguous().view(-1)
+        target_flat = target_crack.contiguous().view(-1)
+
+        # 计算交集和并集
+        intersection = (pred_flat * target_flat).sum()
+        union = pred_flat.sum() + target_flat.sum()
+
+        # Dice系数
+        dice = (2. * intersection + self.smooth) / (union + self.smooth)
+
+        # Dice Loss = 1 - Dice系数
+        return 1 - dice
+
+# 组合损失：Dice Loss + Cross Entropy Loss
+class CombinedLoss(nn.Module):
+    def __init__(self, dice_weight=0.5, ce_weight=0.5):
+        """
+        组合Dice Loss和Cross Entropy Loss
+        Args:
+            dice_weight: Dice Loss的权重
+            ce_weight: Cross Entropy Loss的权重
+        """
+        super(CombinedLoss, self).__init__()
+        self.dice_weight = dice_weight
+        self.ce_weight = ce_weight
+        self.dice_loss = DiceLoss()
+        self.ce_loss = nn.CrossEntropyLoss()
+
+    def forward(self, pred, target):
+        dice = self.dice_loss(pred, target)
+        ce = self.ce_loss(pred, target)
+        return self.dice_weight * dice + self.ce_weight * ce
+
 # 自定义数据集类，用于加载图像和对应的mask
 class RoadCrackDataset(Dataset):
     def __init__(self, image_dir, mask_dir, transform=None):
@@ -57,12 +117,12 @@ class RoadCrackDataset(Dataset):
 def train_val_data_process():
 
     # 定义数据集的路径
-    train_image_path = 'U-net_to_check_road_crake/data/train/images'
-    train_mask_path = 'U-net_to_check_road_crake/data/train/masks'
-    val_image_path = 'U-net_to_check_road_crake/data/val/images'
-    val_mask_path = 'U-net_to_check_road_crake/data/val/masks'
+    train_image_path = 'data/train/images'
+    train_mask_path = 'data/train/masks'
+    val_image_path = 'data/val/images'
+    val_mask_path = 'data/val/masks'
 
-    normalize = transforms.Normalize(mean=[0.15804266,0.16457426,0.16825973],std=[0.04205786,0.04393576,0.04547899])
+    normalize = transforms.Normalize(mean=[0.15620959,0.16285059,0.16683851],std=[0.04152462,0.04320607,0.04479365])
 
     # 定义数据集处理方法变量（仅用于图像）
     train_transform = transforms.Compose([
@@ -78,7 +138,7 @@ def train_val_data_process():
     # 根据GPU数量调整batch size
     num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 1
     # 每个GPU处理的batch size，总batch size = per_gpu_batch_size * num_gpus
-    per_gpu_batch_size = 91
+    per_gpu_batch_size = 30
     total_batch_size = per_gpu_batch_size * num_gpus
 
     train_loader = DataLoader(train_data, batch_size=total_batch_size, shuffle=True,
@@ -127,8 +187,12 @@ def train_model_process(model, train_dataloader, val_dataloader, num_epochs):
 
     # 使用Adam优化器，学习率为0.001
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    # 损失函数为交叉熵函数（用于分割）
-    criterion = nn.CrossEntropyLoss()
+    # 学习率调度器：余弦退火策略
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
+    # 损失函数：使用组合损失（Dice Loss + Cross Entropy Loss）
+    # Dice Loss对小目标（裂缝）更敏感，Cross Entropy提供稳定的梯度
+    criterion = CombinedLoss(dice_weight=0.6, ce_weight=0.4)
+    print("使用组合损失函数: Dice Loss (60%) + Cross Entropy Loss (40%)")
     # 复制当前模型的参数
     best_model_wts = copy.deepcopy(model.state_dict())
 
@@ -214,6 +278,11 @@ def train_model_process(model, train_dataloader, val_dataloader, num_epochs):
         print('{} Train Loss: {:.4f} Train IoU: {:.4f}'.format(epoch, train_loss_all[-1], train_iou_all[-1]))
         print('{} Val Loss: {:.4f} Val IoU: {:.4f}'.format(epoch, val_loss_all[-1], val_iou_all[-1]))
 
+        # 更新学习率
+        scheduler.step()
+        current_lr = optimizer.param_groups[0]['lr']
+        print('当前学习率: {:.6f}'.format(current_lr))
+
         print("\n" + "-" * 50 + "\n")
 
         # 保存最佳模型
@@ -230,7 +299,7 @@ def train_model_process(model, train_dataloader, val_dataloader, num_epochs):
     model.load_state_dict(best_model_wts)
 
     # 确保保存模型的目标目录存在
-    model_save_path = 'U-net_to_check_road_crake/best_model.pth'
+    model_save_path = 'best_model.pth'
     model_save_dir = os.path.dirname(model_save_path)
     if model_save_dir and not os.path.exists(model_save_dir):
         os.makedirs(model_save_dir)
@@ -271,8 +340,8 @@ def matplot_iou_loss(train_process):
     plt.ylabel("IoU")
     plt.title("IoU Curve")
     plt.tight_layout()
-    plt.savefig('U-net_to_check_road_crake/training_curves.png')
-    print("训练曲线已保存到 U-net_to_check_road_crake/training_curves.png")
+    plt.savefig('training_curves.png')
+    print("训练曲线已保存到 training_curves.png")
     plt.show()
 
 if __name__ == "__main__":

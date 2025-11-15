@@ -105,7 +105,7 @@ if __name__ == "__main__":
     ])
 
     # 测试加载数据集
-    base_path = 'U-net_to_check_road_crake/data'
+    base_path = 'data'
     train_img_dir = os.path.join(base_path, "train/images")
     train_mask_dir = os.path.join(base_path, "train/masks")
 
@@ -146,6 +146,6 @@ if __name__ == "__main__":
     axes[1].axis('off')
 
     plt.tight_layout()
-    plt.savefig('U-net_to_check_road_crake/dataset_test.png', dpi=150)
-    print("\n✓ 测试图片已保存: U-net_to_check_road_crake/dataset_test.png")
+    plt.savefig('dataset_test.png', dpi=150)
+    print("\n✓ 测试图片已保存: dataset_test.png")
     plt.show()
