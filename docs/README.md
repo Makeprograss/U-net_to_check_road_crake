@@ -55,6 +55,10 @@ U-net_to_check_road_crake/
     └── 04_代码详解.md
 ```
 
+### best_model.pth（先前已经训练好可以直接用的权重文件）
+-由于文件过大，不能直接上传github，请去通过百度网盘下载
+链接: https://pan.baidu.com/s/1O32eTzd2HcywtEcwMUbfgA 提取码: nbbb
+
 ## 🚀 快速开始
 
 ### 前置要求
